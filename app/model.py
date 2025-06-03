@@ -32,7 +32,7 @@ def generate_dummy_sequence(seq_len=10):
             np.random.randint(0, 7),              # day_of_week
             np.random.randint(0, 24),             # hour_of_day
             np.random.randint(0, 720),            # time_since_last_dose (minutes)
-            np.random.randint(0, 5),              # missed doses last 24h
+            np.random.randint(0, 10),              # missed doses last 24h
             np.random.randint(0, 2),              # was previous dose late
             np.random.randint(0, 2),              # first dose of day
         ]
