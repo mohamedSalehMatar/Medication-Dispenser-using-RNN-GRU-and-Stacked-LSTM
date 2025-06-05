@@ -1,27 +1,62 @@
-import tensorflow as tf
-from model import build_adherence_rnn, generate_dataset
 import os
+import tensorflow as tf
+from model_stacked_lstm import StackedLSTMModel
+from model_gru import GRUModel
+from sklearn.model_selection import train_test_split
 
-# Hyperparameters
-SEQ_LEN = 10
-INPUT_DIM = 9
-NUM_SAMPLES = 2000
-EPOCHS = 10
-BATCH_SIZE = 32
+class Trainer:
+    def __init__(self, model_type='stacked_lstm', seq_len=10, input_dim=9, num_samples=2000, epochs=10, batch_size=32):
+        self.seq_len = seq_len
+        self.input_dim = input_dim
+        self.num_samples = num_samples
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.model_type = model_type
+        self.model_obj = None
+        self.model = None
+        self.X_train = None
+        self.X_val = None
+        self.y_train = None
+        self.y_val = None
 
-# Generate dataset
-X, y = generate_dataset(num_samples=NUM_SAMPLES, seq_len=SEQ_LEN)
+    def prepare_data(self):
+        if self.model_type == 'stacked_lstm':
+            from model_stacked_lstm import generate_dataset
+        elif self.model_type == 'gru':
+            from model_gru import generate_dataset
+        else:
+            raise ValueError("Unsupported model_type. Choose 'stacked_lstm' or 'gru'.")
+        X, y = generate_dataset(num_samples=self.num_samples, seq_len=self.seq_len)
+        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Build and compile model
-model = build_adherence_rnn(input_dim=INPUT_DIM)
-model.compile(optimizer='adam', loss='mean_squared_error')
+    def build_model(self):
+        if self.model_type == 'stacked_lstm':
+            self.model_obj = StackedLSTMModel(input_dim=self.input_dim)
+        elif self.model_type == 'gru':
+            self.model_obj = GRUModel(input_dim=self.input_dim)
+        else:
+            raise ValueError("Unsupported model_type. Choose 'stacked_lstm' or 'gru'.")
+        self.model = self.model_obj.get_model()
+        self.model.compile(optimizer='adam', loss='mean_squared_error')
 
-# Train model
-model.fit(X, y, batch_size=BATCH_SIZE, epochs=EPOCHS, verbose=1)
+    def train(self):
+        callbacks = [
+            tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True),
+            tf.keras.callbacks.ModelCheckpoint('trained_model/model.keras', save_best_only=True)
+        ]
+        os.makedirs("trained_model", exist_ok=True)
+        self.model.fit(
+            self.X_train, self.y_train,
+            validation_data=(self.X_val, self.y_val),
+            batch_size=self.batch_size,
+            epochs=self.epochs,
+            callbacks=callbacks,
+            verbose=1
+        )
+        print("Training complete. Best model saved to trained_model/model.keras")
 
-# Ensure the model directory exists
-os.makedirs("trained_model", exist_ok=True)
-
-# Save model in Keras format to a specific directory
-model.save("trained_model/model.keras")
-print("Model saved to trained_model/model.keras")
+if __name__ == "__main__":
+    trainer = Trainer(model_type='stacked_lstm', num_samples=5000, epochs=20)
+    trainer.prepare_data()
+    trainer.build_model()
+    trainer.train()
