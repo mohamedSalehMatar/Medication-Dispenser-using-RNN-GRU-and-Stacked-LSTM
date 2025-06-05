@@ -23,10 +23,10 @@ class Tester:
         predictions = self.model.predict(self.X_test)
         mse = mean_squared_error(self.y_test, predictions)
         mae = mean_absolute_error(self.y_test, predictions)
+        for i, (pred, true) in enumerate(zip(predictions[:20], self.y_test[:20])):
+            print(f"Sample {i+1}: Predicted Risk = {pred[0]:.4f}, True Risk = {true[0]:.4f}")
         print(f"Test MSE: {mse:.6f}")
         print(f"Test MAE: {mae:.6f}")
-        for i, (pred, true) in enumerate(zip(predictions[:10], self.y_test[:10])):
-            print(f"Sample {i+1}: Predicted Risk = {pred[0]:.4f}, True Risk = {true[0]:.4f}")
 
 if __name__ == "__main__":
     print("Select model to test:")
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         model_type = 'stacked_lstm'
 
     model_path = f"trained_model/model_{model_type}.keras"
-    tester = Tester(model_path=model_path, num_samples=1000)
+    tester = Tester(model_path=model_path, num_samples=10000)
     tester.load_model()
     tester.prepare_data()
     tester.evaluate()

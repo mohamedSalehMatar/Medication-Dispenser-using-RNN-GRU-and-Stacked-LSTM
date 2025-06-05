@@ -41,7 +41,7 @@ class Trainer:
 
     def train(self):
         callbacks = [
-            tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True),
+            tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
             tf.keras.callbacks.ModelCheckpoint(f'trained_model/model_{self.model_type}.keras', save_best_only=True)
         ]
         os.makedirs("trained_model", exist_ok=True)
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         print("Invalid choice, defaulting to Stacked LSTM")
         model_type = 'stacked_lstm'
 
-    trainer = Trainer(model_type=model_type, num_samples=5000, epochs=100)
+    trainer = Trainer(model_type=model_type, num_samples=50000, epochs=100)
     trainer.prepare_data()
     trainer.build_model()
     trainer.train()
