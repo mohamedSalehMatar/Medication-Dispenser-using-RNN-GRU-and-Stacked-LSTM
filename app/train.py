@@ -42,7 +42,7 @@ class Trainer:
     def train(self):
         callbacks = [
             tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True),
-            tf.keras.callbacks.ModelCheckpoint('trained_model/model.keras', save_best_only=True)
+            tf.keras.callbacks.ModelCheckpoint(f'trained_model/model_{self.model_type}.keras', save_best_only=True)
         ]
         os.makedirs("trained_model", exist_ok=True)
         self.model.fit(
@@ -56,7 +56,19 @@ class Trainer:
         print("Training complete. Best model saved to trained_model/model.keras")
 
 if __name__ == "__main__":
-    trainer = Trainer(model_type='stacked_lstm', num_samples=5000, epochs=20)
+    print("Select model to train:")
+    print("1. Stacked LSTM")
+    print("2. GRU")
+    choice = input("Enter choice (1 or 2): ").strip()
+    if choice == '1':
+        model_type = 'stacked_lstm'
+    elif choice == '2':
+        model_type = 'gru'
+    else:
+        print("Invalid choice, defaulting to Stacked LSTM")
+        model_type = 'stacked_lstm'
+
+    trainer = Trainer(model_type=model_type, num_samples=5000, epochs=100)
     trainer.prepare_data()
     trainer.build_model()
     trainer.train()

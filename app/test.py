@@ -29,7 +29,20 @@ class Tester:
             print(f"Sample {i+1}: Predicted Risk = {pred[0]:.4f}, True Risk = {true[0]:.4f}")
 
 if __name__ == "__main__":
-    tester = Tester(num_samples=100)
+    print("Select model to test:")
+    print("1. Stacked LSTM")
+    print("2. GRU")
+    choice = input("Enter choice (1 or 2): ").strip()
+    if choice == '1':
+        model_type = 'stacked_lstm'
+    elif choice == '2':
+        model_type = 'gru'
+    else:
+        print("Invalid choice, defaulting to Stacked LSTM")
+        model_type = 'stacked_lstm'
+
+    model_path = f"trained_model/model_{model_type}.keras"
+    tester = Tester(model_path=model_path, num_samples=1000)
     tester.load_model()
     tester.prepare_data()
     tester.evaluate()
