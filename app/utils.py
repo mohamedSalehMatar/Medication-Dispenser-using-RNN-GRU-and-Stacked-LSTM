@@ -99,3 +99,13 @@ if __name__ == "__main__":
     if X_seq.shape[0] > 0:
         print("First sequence X:\n", X_seq[0])
         print("First target y:", y_target[0])
+
+def load_data_from_csv(file_path):
+    """Load CSV file into pandas DataFrame and drop any NaNs."""
+    try:
+        df = pd.read_csv(file_path)
+        df.dropna(inplace=True)
+        return df
+    except Exception as e:
+        print(f"Error loading CSV from {file_path}: {e}")
+        return pd.DataFrame()  # Return empty DataFrame if failed
