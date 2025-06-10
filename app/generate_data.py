@@ -5,6 +5,8 @@ from utils import create_sequences # Import create_sequences from utils.py
 import os
 
 def generate_dummy_sequence(seq_len=10):
+
+    print(f"New random sequence of length {seq_len} generated.")
     sequence = []
     med_names = ['MedA', 'MedB', 'MedC', 'MedD', 'MedE']
     for _ in range(seq_len):
@@ -19,6 +21,7 @@ def generate_dummy_sequence(seq_len=10):
         triggered = np.random.choice([True, False])
         notifiedLowDays = np.random.choice([True, False])
         lastNotifyTime = np.random.randint(1_600_000_000, 1_700_000_000)  # example timestamp range
+        print(f"New random sequence of length {seq_len} and {med_name} generated.")
 
         sequence.append([
             med_name,
@@ -91,17 +94,17 @@ if __name__ == "__main__":
     os.makedirs(dataset_dir, exist_ok=True)
 
     print("Generating and saving training data...")
-    X_train, y_train = save_generated_data(os.path.join(dataset_dir, 'train.csv'), num_records=80000, seq_length=100)
+    X_train, y_train = save_generated_data(os.path.join(dataset_dir, 'train.csv'), num_records=8000, seq_length=10)
     np.save(os.path.join(dataset_dir, 'X_train.npy'), X_train)
     np.save(os.path.join(dataset_dir, 'y_train.npy'), y_train)
 
     print("Generating and saving validation data...")
-    X_val, y_val = save_generated_data(os.path.join(dataset_dir, 'val.csv'), num_records=10000, seq_length=100)
+    X_val, y_val = save_generated_data(os.path.join(dataset_dir, 'val.csv'), num_records=1000, seq_length=10)
     np.save(os.path.join(dataset_dir, 'X_val.npy'), X_val)
     np.save(os.path.join(dataset_dir, 'y_val.npy'), y_val)
 
     print("Generating and saving test data...")
-    X_test, y_test = save_generated_data(os.path.join(dataset_dir, 'test.csv'), num_records=20000, seq_length=100)
+    X_test, y_test = save_generated_data(os.path.join(dataset_dir, 'test.csv'), num_records=2000, seq_length=10)
     np.save(os.path.join(dataset_dir, 'X_test.npy'), X_test)
     np.save(os.path.join(dataset_dir, 'y_test.npy'), y_test)
 

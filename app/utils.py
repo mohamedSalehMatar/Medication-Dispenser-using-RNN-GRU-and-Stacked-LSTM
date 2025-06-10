@@ -8,25 +8,36 @@ def create_sequences(data_df, seq_length=10, input_dim=11):
     targets = []
     raw_scores = []
 
+    # Encode med_name column to numeric labels
+    med_name_unique = data_df['med_name'].unique()
+    med_name_to_num = {name: idx for idx, name in enumerate(med_name_unique)}
+
     # Ensure data is long enough to create at least one sequence
     if len(data_df) < seq_length:
         print(f"Warning: Not enough data ({len(data_df)} records) to form a sequence of length {seq_length}.")
         return np.array([]).reshape(0, seq_length, input_dim), np.array([]).reshape(0, 1)
 
     for i in range(len(data_df) - seq_length + 1):
-        sequence_data = data_df.iloc[i : i + seq_length].values
+        sequence_data = data_df.iloc[i : i + seq_length].copy()
+
+        # Replace med_name strings with numeric labels
+        print(f"Processing sequence from index {i} to {i + seq_length - 1}")
+        sequence_data['med_name'] = sequence_data['med_name'].map(med_name_to_num)
+
+        sequence_data_values = sequence_data.values.astype(np.float32)
 
         # Calculate risk score for this sequence
         # Adapted to new features:
-        # med_name (string) at index 0, skip in calculation
+        # med_name (encoded numeric) at index 0
         # hour=1, minute=2, second=3, pills=4, servoNum=5, pillsInTape=6, dosesPerDay=7, triggered=8, notifiedLowDays=9, lastNotifyTime=10
         risk_score = 0
-        risk_score += (sequence_data[:, 1].mean() / 24) * 10        # hour normalized and weighted
-        risk_score += (sequence_data[:, 4].mean() / 5) * 20         # pills normalized and weighted
-        risk_score += (sequence_data[:, 8].mean()) * 15             # triggered weighted
-        risk_score += (sequence_data[:, 9].mean()) * 10             # notifiedLowDays weighted
+        risk_score += (sequence_data_values[:, 0].mean()) * 5          # med_name encoded weighted
+        risk_score += (sequence_data_values[:, 1].mean() / 24) * 10    # hour normalized and weighted
+        risk_score += (sequence_data_values[:, 4].mean() / 5) * 20     # pills normalized and weighted
+        risk_score += (sequence_data_values[:, 8].mean()) * 15         # triggered weighted
+        risk_score += (sequence_data_values[:, 9].mean()) * 10         # notifiedLowDays weighted
 
-        sequences.append(sequence_data)
+        sequences.append(sequence_data_values)
         raw_scores.append(risk_score)
 
     # Min-max normalize risk scores to 0-1 range
