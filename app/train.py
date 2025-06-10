@@ -5,7 +5,7 @@ from model_gru import GRUModel
 from sklearn.model_selection import train_test_split
 
 class Trainer:
-    def __init__(self, model_type='stacked_lstm', seq_len=10, input_dim=9, num_samples=2000, epochs=10, batch_size=32):
+    def __init__(self, model_type='stacked_lstm', seq_len=10, input_dim=11, num_samples=2000, epochs=10, batch_size=32):
         self.seq_len = seq_len
         self.input_dim = input_dim
         self.num_samples = num_samples
