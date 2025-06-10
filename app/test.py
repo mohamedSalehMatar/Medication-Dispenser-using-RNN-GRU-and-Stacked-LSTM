@@ -15,9 +15,29 @@ class Tester:
         self.model = tf.keras.models.load_model(self.model_path)
 
     def prepare_data(self):
-        # Import generate_dataset from one of the model files (stacked_lstm used here)
-        from model_stacked_lstm import generate_dataset
-        self.X_test, self.y_test = generate_dataset(num_samples=self.num_samples, seq_len=self.seq_len)
+        import os
+        import numpy as np
+        import pandas as pd
+        dataset_dir = 'dataset'
+        X_test_path = os.path.join(dataset_dir, 'X_test.npy')
+        y_test_path = os.path.join(dataset_dir, 'y_test.npy')
+        test_csv = os.path.join(dataset_dir, 'test.csv')
+
+        if os.path.exists(X_test_path) and os.path.exists(y_test_path):
+            print("Loading test data from pre-generated numpy files...")
+            self.X_test = np.load(X_test_path, allow_pickle=True)
+            self.y_test = np.load(y_test_path, allow_pickle=True)
+        else:
+            print("Pre-generated numpy test files not found, generating dataset from CSV...")
+            if not os.path.exists(test_csv):
+                print("Test CSV file not found. Please run generate_data.py first to create datasets.")
+                raise FileNotFoundError("Required test CSV dataset file is missing.")
+            test_df = pd.read_csv(test_csv)
+            from utils import create_sequences
+            self.X_test, self.y_test = create_sequences(test_df, seq_length=self.seq_len, input_dim=9)
+            os.makedirs(dataset_dir, exist_ok=True)
+            np.save(X_test_path, self.X_test)
+            np.save(y_test_path, self.y_test)
 
     def evaluate(self):
         predictions = self.model.predict(self.X_test)
