@@ -3,7 +3,7 @@ import tensorflow as tf
 from keras import layers, models
 
 class GRUModel:
-    def __init__(self, input_dim=9, hidden_dim=32, output_dim=1, dropout=0.2):
+    def __init__(self, input_dim=11, hidden_dim=32, output_dim=1, dropout=0.2):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
