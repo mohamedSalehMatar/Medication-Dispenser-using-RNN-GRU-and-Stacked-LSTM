@@ -20,14 +20,51 @@ class Trainer:
         self.y_val = None
 
     def prepare_data(self):
-        if self.model_type == 'stacked_lstm':
-            from model_stacked_lstm import generate_dataset
-        elif self.model_type == 'gru':
-            from model_gru import generate_dataset
+        import os
+        import numpy as np
+        import pandas as pd
+        dataset_dir = 'dataset'
+        train_csv = os.path.join(dataset_dir, 'train.csv')
+        val_csv = os.path.join(dataset_dir, 'val.csv')
+        test_csv = os.path.join(dataset_dir, 'test.csv')
+        X_train_path = os.path.join(dataset_dir, 'X_train.npy')
+        y_train_path = os.path.join(dataset_dir, 'y_train.npy')
+        X_val_path = os.path.join(dataset_dir, 'X_val.npy')
+        y_val_path = os.path.join(dataset_dir, 'y_val.npy')
+        X_test_path = os.path.join(dataset_dir, 'X_test.npy')
+        y_test_path = os.path.join(dataset_dir, 'y_test.npy')
+
+        if all(os.path.exists(p) for p in [X_train_path, y_train_path, X_val_path, y_val_path, X_test_path, y_test_path]):
+            print("Loading training, validation, and test data from pre-generated numpy files...")
+            self.X_train = np.load(X_train_path, allow_pickle=True)
+            self.y_train = np.load(y_train_path, allow_pickle=True)
+            self.X_val = np.load(X_val_path, allow_pickle=True)
+            self.y_val = np.load(y_val_path, allow_pickle=True)
+            self.X_test = np.load(X_test_path, allow_pickle=True)
+            self.y_test = np.load(y_test_path, allow_pickle=True)
         else:
-            raise ValueError("Unsupported model_type. Choose 'stacked_lstm' or 'gru'.")
-        X, y = generate_dataset(num_samples=self.num_samples, seq_len=self.seq_len)
-        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+            print("Pre-generated numpy files not found, generating dataset from CSVs...")
+            if not (os.path.exists(train_csv) and os.path.exists(val_csv) and os.path.exists(test_csv)):
+                print("CSV files not found. Please run generate_data.py first to create datasets.")
+                raise FileNotFoundError("Required CSV dataset files are missing.")
+            # Load CSVs
+            train_df = pd.read_csv(train_csv)
+            val_df = pd.read_csv(val_csv)
+            test_df = pd.read_csv(test_csv)
+            # Create sequences
+            from utils import create_sequences
+            self.X_train, self.y_train = create_sequences(train_df, seq_length=self.seq_len, input_dim=self.input_dim)
+            self.X_val, self.y_val = create_sequences(val_df, seq_length=self.seq_len, input_dim=self.input_dim)
+            self.X_test, self.y_test = create_sequences(test_df, seq_length=self.seq_len, input_dim=self.input_dim)
+
+            # Save numpy arrays for future use
+            os.makedirs(dataset_dir, exist_ok=True)
+            np.save(X_train_path, self.X_train)
+            np.save(y_train_path, self.y_train)
+            np.save(X_val_path, self.X_val)
+            np.save(y_val_path, self.y_val)
+            np.save(X_test_path, self.X_test)
+            np.save(y_test_path, self.y_test)
 
     def build_model(self):
         if self.model_type == 'stacked_lstm':
