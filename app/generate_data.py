@@ -4,24 +4,51 @@ import random
 from utils import create_sequences # Import create_sequences from utils.py
 import os
 
-def generate_dummy_sequence(seq_len=10):
+import numpy as np
 
+def generate_dummy_sequence(seq_len=10):
     print(f"New random sequence of length {seq_len} generated.")
     sequence = []
+
+    # Select one med per sequence (for realism)
     med_names = ['MedA', 'MedB', 'MedC', 'MedD', 'MedE']
-    for _ in range(seq_len):
-        med_name = np.random.choice(med_names)  # string
-        hour = np.random.randint(0, 24)
+    med_name = np.random.choice(med_names)
+    dosesPerDay = np.random.randint(1, 5)
+    servoNum = np.random.randint(1, 11)
+    pills = np.random.randint(1, 6)  # dose per take
+    pillsInTape = np.random.randint(30, 100)  # starting inventory
+
+    base_timestamp = 1_700_000_000  # Base time for the sequence
+    lastNotifyTime = 0  # Will be updated if low inventory is detected
+
+    # Define ideal dose hours (equally spaced in a 24-hour day)
+    interval = 24 / (dosesPerDay - 1) if dosesPerDay > 1 else 24
+    scheduled_hours = [(8 + round(i * interval)) % 24 for i in range(dosesPerDay)]
+
+    for i in range(seq_len):
+        # Simulate time of entry
+        hour = (8 + i * (24 // seq_len)) % 24
         minute = np.random.randint(0, 60)
         second = np.random.randint(0, 60)
-        pills = np.random.randint(1, 6)  # dose by take
-        servoNum = np.random.randint(1, 11)  # drawer number
-        pillsInTape = np.random.randint(0, 101)  # remaining pills
-        dosesPerDay = np.random.randint(1, 5)
-        triggered = np.random.choice([True, False])
-        notifiedLowDays = np.random.choice([True, False])
-        lastNotifyTime = np.random.randint(1_600_000_000, 1_700_000_000)  # example timestamp range
-        print(f"New random sequence of length {seq_len} and {med_name} generated.")
+
+        # Calculate current timestamp for this step
+        elapsed_seconds = i * (24 * 3600 // seq_len)
+        current_time = base_timestamp + elapsed_seconds
+
+        # Simulate pill consumption
+        if np.random.rand() < 0.7:  # 70% chance a dose is taken
+            pillsInTape = max(0, pillsInTape - pills)
+
+        # Notification flag if inventory is low
+        notifiedLowDays = pillsInTape < 20
+
+        # Triggered logic (hybrid): dose time or critically low inventory
+        near_dose_time = any(abs(hour - h) <= 1 for h in scheduled_hours)
+        triggered = near_dose_time or pillsInTape < 10
+
+        # Update lastNotifyTime if low inventory notification is triggered
+        if notifiedLowDays:
+            lastNotifyTime = current_time
 
         sequence.append([
             med_name,
@@ -34,34 +61,62 @@ def generate_dummy_sequence(seq_len=10):
             dosesPerDay,
             triggered,
             notifiedLowDays,
-            lastNotifyTime,
+            lastNotifyTime
         ])
+
+    print(f"New random sequence of length {seq_len} and {med_name} generated.")
     return sequence
+
+
+
+
 
 def generate_dataset(num_samples=1000, seq_len=10):
     X = []
     y = []
     raw_scores = []
+
     for _ in range(num_samples):
         sequence = generate_dummy_sequence(seq_len)
-        # Better pseudo logic incorporating all features
-        risk_score = 0
-        # Since med_name is string, skip it in risk score calculation
-        # Use numeric features indices accordingly:
-        # hour=1, minute=2, second=3, pills=4, servoNum=5, pillsInTape=6, dosesPerDay=7, triggered=8, notifiedLowDays=9, lastNotifyTime=10
-        risk_score += (np.mean([item[1] for item in sequence]) / 24) * 10  # hour normalized and weighted
-        risk_score += (np.mean([item[4] for item in sequence]) / 5) * 20   # pills normalized and weighted
-        risk_score += (np.mean([1 if item[8] else 0 for item in sequence])) * 15  # triggered weighted
-        risk_score += (np.mean([1 if item[9] else 0 for item in sequence])) * 10  # notifiedLowDays weighted
+
+        # --------- STEP 1: Temporal weights (more importance to recent events) ---------
+        weights = np.linspace(1, 2, seq_len)  # e.g., [1.0, 1.1, ..., 2.0]
+
+        # --------- STEP 2: Risk from triggered and notified flags ---------
+        triggered_weighted = sum(weights[i] * (1 if step[8] else 0) for i, step in enumerate(sequence))
+        notified_weighted = sum(weights[i] * (1 if step[9] else 0) for i, step in enumerate(sequence))
+
+        # --------- STEP 3: Average gap between timestamps ---------
+        time_gaps = []
+        for i in range(1, seq_len):
+            prev_time = sequence[i - 1][1] * 3600 + sequence[i - 1][2] * 60 + sequence[i - 1][3]
+            curr_time = sequence[i][1] * 3600 + sequence[i][2] * 60 + sequence[i][3]
+            time_gaps.append(abs(curr_time - prev_time))
+        avg_time_gap = np.mean(time_gaps)
+
+        # --------- STEP 4: Final dose inventory (pillsInTape) ---------
+        low_inventory_penalty = 1 if sequence[-1][6] < 10 else 0  # Low inventory at last timestep
+
+        # --------- STEP 5: Total risk score ---------
+        risk_score = (
+            0.05 * triggered_weighted +
+            0.05 * notified_weighted +
+            0.03 * avg_time_gap +
+            0.02 * low_inventory_penalty
+        )
+
         raw_scores.append(risk_score)
         X.append(sequence)
-    # Min-max normalize risk scores to 0-1 range
+
+    # --------- STEP 6: Normalize risk scores to [0, 1] ---------
     min_score = min(raw_scores)
     max_score = max(raw_scores)
-    y = [ [(score - min_score) / (max_score - min_score)] for score in raw_scores ]
+    y = [[(score - min_score) / (max_score - min_score)] for score in raw_scores]
+
     return np.array(X, dtype=object), np.array(y)
 
-def save_generated_data(filepath='dataset/train.csv', num_records=1000, seq_length=10):
+
+def save_generated_data(filepath='../dataset/train.csv', num_records=1000, seq_length=10):
     """
     Generates raw data, saves it to CSV, and then creates sequences and targets.
     This function now uses create_sequences from utils.py.
@@ -90,7 +145,7 @@ def save_generated_data(filepath='dataset/train.csv', num_records=1000, seq_leng
     return sequences, targets
 
 if __name__ == "__main__":
-    dataset_dir = 'dataset'
+    dataset_dir = '../dataset'
     os.makedirs(dataset_dir, exist_ok=True)
 
     print("Generating and saving training data...")
