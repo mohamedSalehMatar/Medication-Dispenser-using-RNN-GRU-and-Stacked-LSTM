@@ -52,11 +52,14 @@ if __name__ == "__main__":
     print("Select model to test:")
     print("1. Stacked LSTM")
     print("2. GRU")
-    choice = input("Enter choice (1 or 2): ").strip()
+    print("3. RNN")
+    choice = input("Enter choice (1 - 3): ").strip()
     if choice == '1':
         model_type = 'stacked_lstm'
     elif choice == '2':
         model_type = 'gru'
+    elif choice == '3':
+        model_type = 'rnn'
     else:
         print("Invalid choice, defaulting to Stacked LSTM")
         model_type = 'stacked_lstm'
