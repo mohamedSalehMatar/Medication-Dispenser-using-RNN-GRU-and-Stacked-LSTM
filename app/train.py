@@ -5,9 +5,10 @@ from model_gru import GRUModel
 from model_rnn import RNNModel
 from sklearn.model_selection import train_test_split
 import numpy as np
+from sklearn.utils import class_weight
 
 class Trainer:
-    def __init__(self, model_type='stacked_lstm', seq_len=10, input_dim=11, num_samples=2000, epochs=10, batch_size=32):
+    def __init__(self, model_type='stacked_lstm', seq_len=3, input_dim=5, num_samples=2000, epochs=10, batch_size=32):
         self.seq_len = seq_len
         self.input_dim = input_dim
         self.num_samples = num_samples
@@ -40,16 +41,16 @@ class Trainer:
     def prepare_data(self, shuffle_timesteps_flag = False):
         import numpy as np
         import pandas as pd
-        dataset_dir = '../dataset'
+        dataset_dir = '../dataset2'
         train_csv = os.path.join(dataset_dir, 'train.csv')
         val_csv = os.path.join(dataset_dir, 'val.csv')
         test_csv = os.path.join(dataset_dir, 'test.csv')
-        X_train_path = os.path.join(dataset_dir, 'X_train.npy')
-        y_train_path = os.path.join(dataset_dir, 'y_train.npy')
-        X_val_path = os.path.join(dataset_dir, 'X_val.npy')
-        y_val_path = os.path.join(dataset_dir, 'y_val.npy')
-        X_test_path = os.path.join(dataset_dir, 'X_test.npy')
-        y_test_path = os.path.join(dataset_dir, 'y_test.npy')
+        X_train_path = os.path.join(dataset_dir, 'train_X.npy')
+        y_train_path = os.path.join(dataset_dir, 'train_y.npy')
+        X_val_path = os.path.join(dataset_dir, 'val_X.npy')
+        y_val_path = os.path.join(dataset_dir, 'val_y.npy')
+        X_test_path = os.path.join(dataset_dir, 'test_X.npy')
+        y_test_path = os.path.join(dataset_dir, 'test_y.npy')
 
         if all(os.path.exists(p) for p in [X_train_path, y_train_path, X_val_path, y_val_path, X_test_path, y_test_path]):
             print("Loading training, validation, and test data from pre-generated numpy files...")
@@ -69,7 +70,7 @@ class Trainer:
             val_df = pd.read_csv(val_csv)
             test_df = pd.read_csv(test_csv)
             # Create sequences
-            from utils import create_sequences
+            from utils2 import create_sequences
             self.X_train, self.y_train = create_sequences(train_df, seq_length=self.seq_len, input_dim=self.input_dim)
             self.X_val, self.y_val = create_sequences(val_df, seq_length=self.seq_len, input_dim=self.input_dim)
             self.X_test, self.y_test = create_sequences(test_df, seq_length=self.seq_len, input_dim=self.input_dim)
@@ -99,7 +100,8 @@ class Trainer:
         else:
             raise ValueError("Unsupported model_type. Choose 'stacked_lstm' or 'gru'.")
         self.model = self.model_obj.get_model()
-        self.model.compile(optimizer='adam', loss='mean_squared_error')
+        self.model.compile(optimizer='adam', loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+    metrics=['accuracy'])
 
     def train(self):
         callbacks = [
@@ -107,12 +109,23 @@ class Trainer:
             tf.keras.callbacks.ModelCheckpoint(f'../trained_model/model_{self.model_type}.keras', save_best_only=True)
         ]
         os.makedirs("../trained_model", exist_ok=True)
+
+
+        class_weights = class_weight.compute_class_weight(
+        class_weight='balanced',
+        classes=np.unique(self.y_train.flatten()),
+        y=self.y_train.flatten()
+        )
+
+        class_weight_dict = {0: class_weights[0], 1: class_weights[1]}
+
         self.model.fit(
             self.X_train, self.y_train,
             validation_data=(self.X_val, self.y_val),
             batch_size=self.batch_size,
             epochs=self.epochs,
             callbacks=callbacks,
+            class_weight = class_weight_dict,
             verbose=1
         )
         print("Training complete. Best model saved to trained_model/model.keras")
