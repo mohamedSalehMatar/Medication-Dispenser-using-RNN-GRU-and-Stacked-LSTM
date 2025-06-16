@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-def create_sequences(data_df, seq_length=10, input_dim=9):
+def create_sequences(data_df, seq_length=10, input_dim=10, target_col='risk_score'):
     sequences = []
     targets = []
 
@@ -9,18 +9,19 @@ def create_sequences(data_df, seq_length=10, input_dim=9):
         print(f"Warning: Not enough data ({len(data_df)} records) to form a sequence of length {seq_length}.")
         return np.array([]).reshape(0, seq_length, input_dim), np.array([]).reshape(0, 1)
 
-    feature_cols = [col for col in data_df.columns if col != 'confirmed']
+    feature_cols = [col for col in data_df.columns if col != target_col]
 
     for i in range(len(data_df) - seq_length + 1):
         sequence_data = data_df.iloc[i : i + seq_length]
 
         X = sequence_data[feature_cols].values.astype(np.float32)
-        y = data_df.iloc[i + seq_length - 1]['confirmed']  # label of the last row in the sequence
+        y = data_df.iloc[i + seq_length - 1][target_col]  # label of the last row in the sequence
 
         sequences.append(X)
         targets.append([float(y)])
 
     return np.array(sequences, dtype=np.float32), np.array(targets, dtype=np.float32)
+
 
 
 def load_data_from_csv(file_path):

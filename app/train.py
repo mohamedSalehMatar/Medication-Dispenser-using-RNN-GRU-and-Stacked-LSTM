@@ -2,7 +2,9 @@ import os
 import tensorflow as tf
 from model_stacked_lstm import StackedLSTMModel
 from model_gru import GRUModel
+from model_rnn import RNNModel
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 class Trainer:
     def __init__(self, model_type='stacked_lstm', seq_len=10, input_dim=11, num_samples=2000, epochs=10, batch_size=32):
@@ -19,11 +21,26 @@ class Trainer:
         self.y_train = None
         self.y_val = None
 
-    def prepare_data(self):
-        import os
+    @staticmethod
+    def shuffle_timesteps(X):
+        X_shuffled = np.empty_like(X)
+    
+    # DEBUG: Compare first sample before/after
+        print("\nOriginal sample[0] (first 3 time steps):")
+        print(X[0][:3])  # first 3 time steps
+
+        for i in range(X.shape[0]):
+            X_shuffled[i] = np.random.permutation(X[i])
+
+        print("\nShuffled sample[0] (first 3 time steps):")
+        print(X_shuffled[0][:3])
+
+        return X_shuffled
+
+    def prepare_data(self, shuffle_timesteps_flag = False):
         import numpy as np
         import pandas as pd
-        dataset_dir = 'dataset'
+        dataset_dir = '../dataset'
         train_csv = os.path.join(dataset_dir, 'train.csv')
         val_csv = os.path.join(dataset_dir, 'val.csv')
         test_csv = os.path.join(dataset_dir, 'test.csv')
@@ -66,11 +83,19 @@ class Trainer:
             np.save(X_test_path, self.X_test)
             np.save(y_test_path, self.y_test)
 
+        if shuffle_timesteps_flag:
+            print("Shuffling timesteps inside each sequence for X_train and X_val...")
+            self.X_train = Trainer.shuffle_timesteps(self.X_train)
+            self.X_val = Trainer.shuffle_timesteps(self.X_val)
+
+
     def build_model(self):
         if self.model_type == 'stacked_lstm':
             self.model_obj = StackedLSTMModel(input_dim=self.input_dim)
         elif self.model_type == 'gru':
             self.model_obj = GRUModel(input_dim=self.input_dim)
+        elif self.model_type == 'rnn':
+            self.model_obj = RNNModel(input_dim = self.input_dim)
         else:
             raise ValueError("Unsupported model_type. Choose 'stacked_lstm' or 'gru'.")
         self.model = self.model_obj.get_model()
@@ -79,9 +104,9 @@ class Trainer:
     def train(self):
         callbacks = [
             tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
-            tf.keras.callbacks.ModelCheckpoint(f'trained_model/model_{self.model_type}.keras', save_best_only=True)
+            tf.keras.callbacks.ModelCheckpoint(f'../trained_model/model_{self.model_type}.keras', save_best_only=True)
         ]
-        os.makedirs("trained_model", exist_ok=True)
+        os.makedirs("../trained_model", exist_ok=True)
         self.model.fit(
             self.X_train, self.y_train,
             validation_data=(self.X_val, self.y_val),
@@ -96,16 +121,19 @@ if __name__ == "__main__":
     print("Select model to train:")
     print("1. Stacked LSTM")
     print("2. GRU")
-    choice = input("Enter choice (1 or 2): ").strip()
+    print("3. RNN")
+    choice = input("Enter choice (1, 2, 3): ").strip()
     if choice == '1':
         model_type = 'stacked_lstm'
     elif choice == '2':
         model_type = 'gru'
+    elif choice == '3':
+        model_type = 'rnn'
     else:
         print("Invalid choice, defaulting to Stacked LSTM")
         model_type = 'stacked_lstm'
 
     trainer = Trainer(model_type=model_type, num_samples=50000, epochs=100)
-    trainer.prepare_data()
+    trainer.prepare_data(shuffle_timesteps_flag= False)
     trainer.build_model()
     trainer.train()

@@ -3,6 +3,7 @@ import pandas as pd
 import random
 from utils import create_sequences # Import create_sequences from utils.py
 import os
+from sklearn.preprocessing import LabelEncoder
 
 import numpy as np
 
@@ -116,19 +117,71 @@ def generate_dataset(num_samples=1000, seq_len=10):
     return np.array(X, dtype=object), np.array(y)
 
 
-def save_generated_data(filepath='../dataset/train.csv', num_records=1000, seq_length=10):
+import os
+import numpy as np
+import pandas as pd
+from utils import create_sequences  # make sure utils.py is in the same directory or properly imported
+
+def save_generated_data(filepath='dataset/train.csv', num_records=1000, seq_length=10):
     """
-    Generates raw data, saves it to CSV, and then creates sequences and targets.
-    This function now uses create_sequences from utils.py.
+    Generates synthetic data using generate_dummy_sequence(), assigns risk scores,
+    saves to CSV, and returns sequence/target arrays for model training.
     """
-    raw_data = []
+    from generate_data import generate_dummy_sequence  # Import your sequence generator
+    X_all = []
+    y_all = []
+    raw_rows = []
+
     for _ in range(num_records):
-        raw_data.extend(generate_dummy_sequence(seq_length))
+        sequence = generate_dummy_sequence(seq_length)
+
+        # Step 1: Temporal weights
+        weights = np.linspace(1, 2, seq_length)
+
+        # Step 2: Triggered + Notified weighted
+        triggered_weighted = sum(weights[i] * (1 if step[8] else 0) for i, step in enumerate(sequence))
+        notified_weighted = sum(weights[i] * (1 if step[9] else 0) for i, step in enumerate(sequence))
+
+        # Step 3: Average time gap
+        time_gaps = []
+        for i in range(1, seq_length):
+            prev_time = sequence[i - 1][1] * 3600 + sequence[i - 1][2] * 60 + sequence[i - 1][3]
+            curr_time = sequence[i][1] * 3600 + sequence[i][2] * 60 + sequence[i][3]
+            time_gaps.append(abs(curr_time - prev_time))
+        avg_time_gap = np.mean(time_gaps)
+
+        # Step 4: Low inventory
+        low_inventory_penalty = 1 if sequence[-1][6] < 10 else 0
+
+        # Step 5: Risk score
+        raw_score = (
+            0.05 * triggered_weighted +
+            0.05 * notified_weighted +
+            0.03 * avg_time_gap +
+            0.02 * low_inventory_penalty
+        )
+
+        # Accumulate for normalization later
+        X_all.append(sequence)
+        y_all.append(raw_score)
+
+    # Normalize risk scores to [0, 1]
+    min_score, max_score = min(y_all), max(y_all)
+    normalized_y = [(score - min_score) / (max_score - min_score) for score in y_all]
+
+    # Flatten sequences and assign risk_score column
+    flat_rows = []
+    for i in range(len(X_all)):
+        for step in X_all[i]:
+            flat_rows.append(step + [normalized_y[i]])
+
     columns = [
         'med_name', 'hour', 'minute', 'second', 'pills', 'servoNum',
-        'pillsInTape', 'dosesPerDay', 'triggered', 'notifiedLowDays', 'lastNotifyTime'
+        'pillsInTape', 'dosesPerDay', 'triggered', 'notifiedLowDays',
+        'lastNotifyTime', 'risk_score'
     ]
-    raw_data_df = pd.DataFrame(raw_data, columns=columns)
+
+    raw_data_df = pd.DataFrame(flat_rows, columns=columns)
 
     # Ensure the 'dataset' directory exists
     output_dir = os.path.dirname(filepath)
@@ -136,13 +189,19 @@ def save_generated_data(filepath='../dataset/train.csv', num_records=1000, seq_l
         os.makedirs(output_dir)
 
     raw_data_df.to_csv(filepath, index=False)
-    print(f"Raw data saved to {filepath} with {num_records} sequences.")
+    print(f"Raw data saved to {filepath} with {len(X_all)} sequences.")
 
-    # Now create sequences and targets using the utility function
-    sequences, targets = create_sequences(raw_data_df, seq_length=seq_length, input_dim=len(columns))
+    # Encode med_name
+    raw_data_df['med_name'] = raw_data_df['med_name'].astype('category').cat.codes
+
+    # Now create sequences and targets
+    sequences, targets = create_sequences(
+        raw_data_df, seq_length=seq_length, input_dim=len(columns) - 1, target_col='risk_score'
+    )
     print(f"Generated sequences shape: {sequences.shape}")
     print(f"Generated targets shape: {targets.shape}")
     return sequences, targets
+
 
 if __name__ == "__main__":
     dataset_dir = '../dataset'
