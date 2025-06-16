@@ -18,7 +18,7 @@ class Tester:
         import os
         import numpy as np
         import pandas as pd
-        dataset_dir = 'dataset'
+        dataset_dir = '../dataset'
         X_test_path = os.path.join(dataset_dir, 'X_test.npy')
         y_test_path = os.path.join(dataset_dir, 'y_test.npy')
         test_csv = os.path.join(dataset_dir, 'test.csv')
@@ -57,6 +57,8 @@ if __name__ == "__main__":
         model_type = 'stacked_lstm'
     elif choice == '2':
         model_type = 'gru'
+    elif choice == '3':
+        model_type = 'rnn'
     else:
         print("Invalid choice, defaulting to Stacked LSTM")
         model_type = 'stacked_lstm'
