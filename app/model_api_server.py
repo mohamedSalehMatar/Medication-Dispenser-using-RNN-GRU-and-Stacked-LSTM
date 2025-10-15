@@ -1,5 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
+from typing import List
+import json
 import numpy as np
 import tensorflow as tf
 import uvicorn
@@ -30,7 +32,7 @@ except Exception as e:
     rnn_model = None
 
 class SequenceInput(BaseModel):
-    sequence: list  # List of lists representing the feature sequence
+    sequence: List[List[float]]  # List of lists representing the feature sequence
 
 def predict_risk(model, sequence):
     try:
@@ -50,23 +52,41 @@ def predict_risk(model, sequence):
         raise HTTPException(status_code=400, detail=f"Prediction error: {e}")
 
 @app.post("/predict_gru")
-def predict_gru(input_data: SequenceInput):
+async def predict_gru(request: Request):
     if gru_model is None:
         raise HTTPException(status_code=500, detail="GRU model not loaded")
+    try:
+        body = await request.body()
+        data = json.loads(body.decode('utf-8'))
+        input_data = SequenceInput(**data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON input: {e}")
     risk = predict_risk(gru_model, input_data.sequence)
     return {"model": "GRU", "risk_prediction": risk}
 
 @app.post("/predict_lstm")
-def predict_lstm(input_data: SequenceInput):
+async def predict_lstm(request: Request):
     if lstm_model is None:
         raise HTTPException(status_code=500, detail="LSTM model not loaded")
+    try:
+        body = await request.body()
+        data = json.loads(body.decode('utf-8'))
+        input_data = SequenceInput(**data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON input: {e}")
     risk = predict_risk(lstm_model, input_data.sequence)
     return {"model": "Stacked LSTM", "risk_prediction": risk}
 
 @app.post("/predict_rnn")
-def predict_rnn(input_data: SequenceInput):
+async def predict_rnn(request: Request):
     if rnn_model is None:
         raise HTTPException(status_code=500, detail="RNN model not loaded")
+    try:
+        body = await request.body()
+        data = json.loads(body.decode('utf-8'))
+        input_data = SequenceInput(**data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON input: {e}")
     risk = predict_risk(rnn_model, input_data.sequence)
     return {"model": "RNN", "risk_prediction": risk}
 
