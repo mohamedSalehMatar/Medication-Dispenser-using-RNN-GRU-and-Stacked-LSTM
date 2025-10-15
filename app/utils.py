@@ -1,55 +1,58 @@
-# import numpy as np
-# import pandas as pd
+import numpy as np
+import pandas as pd
 
-# def create_sequences(data_df, seq_length=10, input_dim=10, target_col='risk_score'):
-#     sequences = []
-#     targets = []
+def create_sequences(data_df, seq_length=3, input_dim=5):
+    """
+    Creates sequences of `seq_length` from the input DataFrame.
+    Each sequence is associated with a binary target: whether the next dose is missed (0) or taken (1).
+    """
+    sequences = []
+    targets = []
 
-#     if len(data_df) < seq_length:
-#         print(f"Warning: Not enough data ({len(data_df)} records) to form a sequence of length {seq_length}.")
-#         return np.array([]).reshape(0, seq_length, input_dim), np.array([]).reshape(0, 1)
+    if len(data_df) < seq_length + 1:
+        print(f"Warning: Not enough data ({len(data_df)} records) to form sequence+target of length {seq_length+1}.")
+        return np.array([]).reshape(0, seq_length, input_dim), np.array([]).reshape(0, 1)
 
-#     feature_cols = [col for col in data_df.columns if col != target_col]
+    for i in range(len(data_df) - seq_length):
+        seq_slice = data_df.iloc[i : i + seq_length]
+        next_status = data_df.iloc[i + seq_length]['status']  # 0 or 1
 
-#     for i in range(len(data_df) - seq_length + 1):
-#         sequence_data = data_df.iloc[i : i + seq_length]
+        X = seq_slice[['medicine', 'dose', 'scheduled_time', 'confirmation_time', 'status']].values.astype(np.float32)
+        y = [float(next_status)]
 
-#         X = sequence_data[feature_cols].values.astype(np.float32)
-#         y = data_df.iloc[i + seq_length - 1][target_col]  # label of the last row in the sequence
+        sequences.append(X)
+        targets.append(y)
 
-#         sequences.append(X)
-#         targets.append([float(y)])
-
-#     return np.array(sequences, dtype=np.float32), np.array(targets, dtype=np.float32)
-
-
-
-# def load_data_from_csv(file_path):
-#     """Load CSV file into pandas DataFrame and drop any NaNs."""
-#     try:
-#         df = pd.read_csv(file_path)
-#         df.dropna(inplace=True)
-#         return df
-#     except Exception as e:
-#         print(f"Error loading CSV from {file_path}: {e}")
-#         return pd.DataFrame()  # Return empty DataFrame if failed
+    return np.array(sequences, dtype=np.float32), np.array(targets, dtype=np.float32)
 
 
-# # Optional: run test
-# if __name__ == "__main__":
-#     print("Testing create_sequences on dummy data...")
+def load_data_from_csv(file_path):
+    """
+    Load a CSV file and clean it.
+    Assumes all features are numerical.
+    """
+    try:
+        df = pd.read_csv(file_path)
+        df.dropna(inplace=True)
+        return df
+    except Exception as e:
+        print(f"Error loading CSV from {file_path}: {e}")
+        return pd.DataFrame()
 
-#     dummy_df = pd.DataFrame({
-#         'scheduled_time': np.random.randint(0, 1500, 20),
-#         'delay_seconds': np.random.randint(0, 1000, 20),
-#         'day_of_week': np.random.randint(0, 7, 20),
-#         'hour_of_day': np.random.randint(0, 24, 20),
-#         'time_since_last_dose': np.random.randint(0, 700, 20),
-#         'missed_doses_24h': np.random.randint(0, 5, 20),
-#         'was_prev_dose_late': np.random.randint(0, 2, 20),
-#         'first_dose_of_day': np.random.randint(0, 2, 20),
-#         'confirmed': np.random.randint(0, 2, 20),
-#     })
 
-#     X, y = create_sequences(dummy_df, seq_length=5, input_dim=8)
-#     print(f"X shape: {X.shape}, y shape: {y.shape}")
+# Optional: quick test
+if __name__ == "__main__":
+    print("Testing create_sequences on dummy medicine data...")
+
+    dummy_df = pd.DataFrame({
+        'medicine': np.random.randint(0, 5, 10),
+        'dose': np.random.randint(1, 4, 10),
+        'scheduled_time': np.random.randint(0, 86400, 10),
+        'confirmation_time': np.random.randint(0, 86400, 10),
+        'status': np.random.randint(0, 2, 10),
+    })
+
+    X, y = create_sequences(dummy_df, seq_length=3)
+    print(f"X shape: {X.shape}, y shape: {y.shape}")
+    print("Example sequence:\n", X[0])
+    print("Target (will user take next dose?):", y[0])

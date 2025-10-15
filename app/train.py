@@ -70,7 +70,7 @@ class Trainer:
             val_df = pd.read_csv(val_csv)
             test_df = pd.read_csv(test_csv)
             # Create sequences
-            from utils2 import create_sequences
+            from utils import create_sequences
             self.X_train, self.y_train = create_sequences(train_df, seq_length=self.seq_len, input_dim=self.input_dim)
             self.X_val, self.y_val = create_sequences(val_df, seq_length=self.seq_len, input_dim=self.input_dim)
             self.X_test, self.y_test = create_sequences(test_df, seq_length=self.seq_len, input_dim=self.input_dim)

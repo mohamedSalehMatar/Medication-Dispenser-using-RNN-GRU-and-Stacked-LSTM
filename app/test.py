@@ -34,7 +34,7 @@ class Tester:
                 raise FileNotFoundError("Required test CSV dataset file is missing.")
             test_df = pd.read_csv(test_csv)
 
-            from utils2 import create_sequences
+            from utils import create_sequences
             self.X_test, self.y_test = create_sequences(test_df, seq_length=self.seq_len, input_dim=5)
             os.makedirs(dataset_dir, exist_ok=True)
             np.save(X_test_path, self.X_test)
